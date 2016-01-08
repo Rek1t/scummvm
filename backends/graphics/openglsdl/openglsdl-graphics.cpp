@@ -506,19 +506,23 @@ bool OpenGLSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 			if (event.kbd.keycode == Common::KEYCODE_s) {
 				// Alt-s creates a screenshot
 				Common::String filename;
+                        	char path[2048];
 
 				for (int n = 0;; n++) {
 					SDL_RWops *file;
+					strcpy(path, ConfMan.get("screenshotspath"));
 
 					filename = Common::String::format("scummvm%05d.bmp", n);
-					file = SDL_RWFromFile(filename.c_str(), "r");
+					strcat(path, filename.c_str());
+					
+					file = SDL_RWFromFile(path, "r");
 					if (!file)
 						break;
 					SDL_RWclose(file);
 				}
 
-				saveScreenshot(filename.c_str());
-				debug("Saved screenshot '%s'", filename.c_str());
+				saveScreenshot(path);
+				debug("Saved screenshot '%s'", path);
 
 				return true;
 			}

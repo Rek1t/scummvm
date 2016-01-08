@@ -108,6 +108,7 @@ static const char HELP_STRING[] =
 	"                           pce, segacd, wii, windows)\n"
 	"  --savepath=PATH          Path to where saved games are stored\n"
 	"  --extrapath=PATH         Extra path to additional game data\n"
+	"  --screenshotspath=PATH   Path to where screenshots\n"
 	"  --soundfont=FILE         Select the SoundFont for MIDI playback (only\n"
 	"                           supported by some MIDI drivers)\n"
 	"  --multi-midi             Enable combination AdLib and native MIDI\n"
@@ -203,6 +204,7 @@ void registerDefaults() {
 
 	ConfMan.registerDefault("enable_unsupported_game_warning", true);
 
+	ConfMan.registerDefault("screenshotspath", "");
 	// Game specific
 	ConfMan.registerDefault("path", "");
 	ConfMan.registerDefault("platform", Common::kPlatformDOS);
