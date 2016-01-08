@@ -506,7 +506,7 @@ bool OpenGLSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 			if (event.kbd.keycode == Common::KEYCODE_s) {
 				// Alt-s creates a screenshot
 				Common::String filename;
-                        	char path[2048];
+				char path[2048];
 
 				for (int n = 0;; n++) {
 					SDL_RWops *file;
@@ -514,7 +514,7 @@ bool OpenGLSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 
 					filename = Common::String::format("/scummvm%05d.bmp", n);
 					strcat(path, filename.c_str());
-					
+
 					file = SDL_RWFromFile(path, "r");
 					if (!file)
 						break;
