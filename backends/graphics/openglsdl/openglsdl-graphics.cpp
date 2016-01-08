@@ -510,9 +510,9 @@ bool OpenGLSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 
 				for (int n = 0;; n++) {
 					SDL_RWops *file;
-					strcpy(path, ConfMan.get("screenshotspath"));
+					strcpy(path, ConfMan.get("screenshotspath").c_str());
 
-					filename = Common::String::format("scummvm%05d.bmp", n);
+					filename = Common::String::format("/scummvm%05d.bmp", n);
 					strcat(path, filename.c_str());
 					
 					file = SDL_RWFromFile(path, "r");

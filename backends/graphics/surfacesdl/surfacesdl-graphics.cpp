@@ -2333,11 +2333,10 @@ bool SurfaceSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 			char path[2048];
 			for (int n = 0;; n++) {
 				SDL_RWops *file;
-
-				strcpy(path, ConfMan.get("screenshotspath"));
+				strcpy(path, ConfMan.get("screenshotspath").c_str());
 				sprintf(filename, "/scummvm%05d.bmp", n);
 				strcat(path, filename);
-				file = SDL_RWFromFile(path "r");
+				file = SDL_RWFromFile(path, "r");
 				if (!file)
 					break;
 				SDL_RWclose(file);
