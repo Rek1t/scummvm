@@ -834,7 +834,7 @@ Usage: $0 [OPTIONS]...
 Configuration:
   -h, --help              display this help and exit
   --backend=BACKEND       backend to build (android, tizen, dc, dingux, ds, gcw0,
-                          gph, iphone, linuxmoto, maemo, n64, null, openpandora,
+                          gph, iphone, ios7, linuxmoto, maemo, n64, null, openpandora,
                           ps2, psp, samsungtv, sdl, webos, wii, wince) [sdl]
 
 Installation directories:
@@ -874,7 +874,8 @@ Special configuration feature:
                                            gcw0 for GCW Zero
                                            gp2x for GP2X
                                            gp2xwiz for GP2X Wiz
-                                           iphone for Apple iPhone
+                                           iphone for Apple iPhone (iOS <= 6)
+                                           ios7 for Apple iPhone / iPad (iOS >= 7)
                                            linupy for Yopy PDA
                                            maemo for Nokia Maemo
                                            motoezx for MotoEZX
@@ -1359,6 +1360,11 @@ iphone)
 	_host_cpu=arm
 	_host_alias=arm-apple-darwin9
 	;;
+ios7)
+	_host_os=iphone
+	_host_cpu=arm
+	_host_alias=arm-apple-darwin11
+	;;
 linupy)
 	_host_os=linux
 	_host_cpu=arm
@@ -1686,23 +1692,33 @@ LD=$CXX
 #
 echocheck "compiler version"
 
-# We first check whether we have an Intel compiler here, since the Intel compiler
-# can also fake itself as an gcc (to ease compatibility with common Linux etc.
-# programs).
+# Some compilers pretend to be gcc to ease compatibility with
+# common Linux etc. programs. We first check for some of these here.
+have_gcc=no
+cc_check_define __GNUC__ && have_gcc=yes
 have_icc=no
 cc_check_define __INTEL_COMPILER && have_icc=yes
+have_clang=no
+cc_check_define __clang__ && have_clang=yes
 
 if test "$have_icc" = yes; then
 	add_line_to_config_mk 'HAVE_ICC = 1'
 
-	# Make ICC error our on unknown command line options instead of printing
+	# Make ICC error out on unknown command line options instead of printing
 	# a warning. This is for example required to make the -Wglobal-destructors
 	# detection work correctly.
 	append_var CXXFLAGS "-diag-error 10006,10148"
+
+	# ICC doesn't accept all gcc options, so we disable have_gcc, even if
+	# ICC does have the gcc-compatibility defines.
+	have_gcc=no
 fi
 
-have_gcc=no
-cc_check_define __GNUC__ && have_gcc=yes
+if test "$have_clang" = yes; then
+	add_line_to_config_mk 'HAVE_CLANG = 1'
+
+	# clang does accept all gcc options we use, so we keep have_gcc
+fi
 
 if test "$have_gcc" = yes; then
 	add_line_to_config_mk 'HAVE_GCC = 1'
@@ -1710,11 +1726,17 @@ if test "$have_gcc" = yes; then
 	_cxx_minor=`gcc_get_define __GNUC_MINOR__`
 	cxx_version="`( $CXX -dumpversion ) 2>&1`"
 
-	if test -n "`gcc_get_define __clang__`"; then
-		add_line_to_config_mk 'HAVE_CLANG = 1'
-	fi
+	if test "$have_clang" = yes; then
+		# Clang sets a gcc version number for compatibility.
+		# We keep that as _cxx_minor/_cxx_major for later
+		# compiler version checks.
 
-	if test "$_cxx_major" -eq 2 && test "$_cxx_minor" -ge 95 || \
+		# For the version reported in the configure log (cxx_version),
+		# we get the actual clang version.
+		cxx_version=`gcc_get_define __clang_version__`
+		cxx_version="`echo "${cxx_version}" | sed -e 's/"\([^ ]*\) .*/\1/'`"
+		cxx_version="clang $cxx_version, ok"
+	elif test "$_cxx_major" -eq 2 && test "$_cxx_minor" -ge 95 || \
 	   test "$_cxx_major" -gt 2 ; then
 		cxx_version="$cxx_version, ok"
 		cxx_verc_fail=no
@@ -2046,21 +2068,28 @@ define_in_config_h_if_yes $_need_memalign 'SCUMM_NEED_ALIGNMENT'
 echo_n "Checking host CPU architecture... "
 case $_host_cpu in
 	arm*)
-		echo "ARM"
-		define_in_config_if_yes yes 'USE_ARM_SCALER_ASM'
-		# FIXME: The following feature exhibits a bug. It produces distorted
-		# sound since 9003ce517ff9906b0288f9f7c02197fd091d4554. The ARM
-		# assembly will need to be properly adapted to the changes to the C
-		# code in 8f5a7cde2f99de9fef849b0ff688906f05f4643e.
-		# See bug #6957: "AUDIO: ARM ASM sound code causes distorted audio on 32 bit armv6"
-		#define_in_config_if_yes yes 'USE_ARM_SOUND_ASM'
-		define_in_config_if_yes yes 'USE_ARM_SMUSH_ASM'
-		define_in_config_if_yes yes 'USE_ARM_GFX_ASM'
-		# FIXME: The following feature exhibits a bug during the intro scene of Indy 4
-		# (on Pandora and iPhone at least)
-		#define_in_config_if_yes yes 'USE_ARM_COSTUME_ASM'
+		case $_host_alias in
+			arm-apple-darwin11)
+				echo "Apple iOS 7+ - ARM assembly disabled"
+				;;
+			*)
+				echo "ARM"
+				define_in_config_if_yes yes 'USE_ARM_SCALER_ASM'
+				# FIXME: The following feature exhibits a bug. It produces distorted
+				# sound since 9003ce517ff9906b0288f9f7c02197fd091d4554. The ARM
+				# assembly will need to be properly adapted to the changes to the C
+				# code in 8f5a7cde2f99de9fef849b0ff688906f05f4643e.
+				# See bug #6957: "AUDIO: ARM ASM sound code causes distorted audio on 32 bit armv6"
+				#define_in_config_if_yes yes 'USE_ARM_SOUND_ASM'
+				define_in_config_if_yes yes 'USE_ARM_SMUSH_ASM'
+				define_in_config_if_yes yes 'USE_ARM_GFX_ASM'
+				# FIXME: The following feature exhibits a bug during the intro scene of Indy 4
+				# (on Pandora and iPhone at least)
+				#define_in_config_if_yes yes 'USE_ARM_COSTUME_ASM'
 
-		append_var DEFINES "-DARM_TARGET"
+				append_var DEFINES "-DARM_TARGET"
+				;;
+		esac
 		;;
 	i[3-6]86)
 		echo "x86"
@@ -2091,7 +2120,7 @@ echo_n "Checking hosttype... "
 echo $_host_os
 case $_host_os in
 	amigaos*)
-		append_var LDFLAGS "-use-dynld -Wl,--export-dynamic"
+		append_var LDFLAGS "-Wl,--export-dynamic"
 		append_var LDFLAGS "-L/sdk/local/newlib/lib"
 		# We have to use 'long' for our 4 byte typedef because AmigaOS already typedefs (u)int32
 		# as (unsigned) long, and consequently we'd get a compiler error otherwise.
@@ -2594,8 +2623,10 @@ if test -n "$_host"; then
 			# since SDL2 manages dispmanx/GLES2 very well internally.
 			# SDL1 is bit-rotten on this platform.
 			_sdlconfig=sdl2-config
-			# We should add _opengles=yes later here if we wanted the GLES renderer.
-			# For now, we use plain SDL2 only, which in turn uses GLES2 by default.
+			# OpenGL(ES) support is mature enough as to be the best option on
+			# the Raspberry Pi, so it's enabled by default.
+			_opengl=yes
+			_opengles=yes
 			;;
 		dreamcast)
 			append_var DEFINES "-DDISABLE_DEFAULT_SAVEFILEMANAGER"
@@ -2699,6 +2730,16 @@ if test -n "$_host"; then
 			append_var DEFINES "-DIPHONE"
 			append_var ASFLAGS "-arch armv6"
 			_backend="iphone"
+			_build_scalers=no
+			_mt32emu=no
+			_seq_midi=no
+			_timidity=no
+			;;
+		ios7)
+			append_var DEFINES "-DIPHONE"
+			append_var CFLAGS "-Wno-shift-count-overflow"
+			append_var CXXFLAGS "-Wno-shift-count-overflow"
+			_backend="ios7"
 			_build_scalers=no
 			_mt32emu=no
 			_seq_midi=no
@@ -2997,6 +3038,19 @@ case $_backend in
 		append_var LIBS "-framework QuartzCore -framework CoreFoundation -framework Foundation"
 		append_var LIBS "-framework AudioToolbox -framework CoreAudio"
 		;;
+	ios7)
+		append_var LIBS "-lobjc -framework UIKit -framework CoreGraphics -framework OpenGLES"
+		append_var LIBS "-framework QuartzCore -framework CoreFoundation -framework Foundation"
+		append_var LIBS "-framework AudioToolbox -framework CoreAudio"
+		append_var LDFLAGS "-miphoneos-version-min=7.1 -arch armv7"
+		append_var CFLAGS "-miphoneos-version-min=7.1 -arch armv7"
+		append_var CXXFLAGS "-miphoneos-version-min=7.1 -arch armv7"
+		if test -n "$SDKROOT"; then
+			append_var LDFLAGS "-mlinker-version=134.9 -B/usr/local/bin/arm-apple-darwin11-"
+			append_var CFLAGS "-isysroot $SDKROOT -F$SDKROOT/System/Library/Frameworks"
+			append_var CXXFLAGS "-isysroot $SDKROOT -I$SDKROOT/usr/include/c++/4.2.1 -F$SDKROOT/System/Library/Frameworks"
+		fi
+		;;
 	linuxmoto)
 		append_var DEFINES "-DLINUXMOTO"
 		;;
@@ -3128,7 +3182,7 @@ esac
 # Enable 16bit support only for backends which support it
 #
 case $_backend in
-	android | dingux | dc | gph | iphone | maemo | openpandora | psp | samsungtv | sdl | tizen | webos | wii)
+	android | dingux | dc | gph | iphone | ios7 | maemo | openpandora | psp | samsungtv | sdl | tizen | webos | wii)
 		if test "$_16bit" = auto ; then
 			_16bit=yes
 		else
@@ -3187,7 +3241,7 @@ case $_host_os in
 	amigaos* | cygwin* | dreamcast | ds | gamecube | mingw* | n64 | ps2 | ps3 | psp | wii | wince)
 		_posix=no
 		;;
-	android | beos* | bsd* | darwin* | freebsd* | gnu* | gph-linux | haiku* | hpux* | iphone | irix*| k*bsd*-gnu* | linux* | maemo | mint* | netbsd* | openbsd* | solaris* | sunos* | uclinux* | webos)
+	android | beos* | bsd* | darwin* | freebsd* | gnu* | gph-linux | haiku* | hpux* | iphone | ios7 | irix*| k*bsd*-gnu* | linux* | maemo | mint* | netbsd* | openbsd* | solaris* | sunos* | uclinux* | webos)
 		_posix=yes
 		;;
 	os2-emx*)
@@ -4596,6 +4650,7 @@ STAGINGPATH=$_stagingpath
 WIN32PATH=$_win32path
 AMIGAOSPATH=$_amigaospath
 STATICLIBPATH=$_staticlibpath
+SDLCONFIG=$_sdlconfig
 
 ABI := $ABI
 

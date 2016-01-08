@@ -304,7 +304,7 @@ void EngineState::saveLoadWithSerializer(Common::Serializer &s) {
 	_segMan->saveLoadWithSerializer(s);
 
 	g_sci->_soundCmd->syncPlayList(s);
-	g_sci->_gfxPalette->saveLoadWithSerializer(s);
+	g_sci->_gfxPalette16->saveLoadWithSerializer(s);
 }
 
 void Vocabulary::saveLoadWithSerializer(Common::Serializer &s) {
@@ -465,7 +465,7 @@ void Script::syncStringHeap(Common::Serializer &s) {
 				break;
 		} while (1);
 
-	} else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1){
+	} else if (getSciVersion() >= SCI_VERSION_1_1 && getSciVersion() <= SCI_VERSION_2_1_LATE){
 		// Strings in SCI1.1 come after the object instances
 		byte *buf = _heapStart + 4 + READ_SCI11ENDIAN_UINT16(_heapStart + 2) * 2;
 
